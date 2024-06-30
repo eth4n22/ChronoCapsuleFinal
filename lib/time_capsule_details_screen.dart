@@ -3,14 +3,20 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart'; // Import for date formatting
 import 'package:chronocapsules/capsule.dart'; // Import Capsule class
 import 'package:chronocapsules/full_screen_image_screen.dart'; // Import the full screen image screen
-import 'package:image_picker/image_picker.dart'; // Import image_picker for photo selection
+import 'package:image_picker/image_picker.dart'; // Import for image picker
+import 'package:video_player/video_player.dart'; // Import for video player
 
 class TimeCapsuleDetailsScreen extends StatefulWidget {
   final Capsule capsule;
-  final Function(Capsule) onUpdate; // Callback for updating the capsule
+  final Function(Capsule) onUpdate;
+  final Function(Capsule) onDelete; // Add a callback function for deletion
 
-  const TimeCapsuleDetailsScreen(
-      {super.key, required this.capsule, required this.onUpdate});
+  const TimeCapsuleDetailsScreen({
+    super.key,
+    required this.capsule,
+    required this.onUpdate,
+    required this.onDelete, // Add this parameter
+  });
 
   @override
   _TimeCapsuleDetailsScreenState createState() =>
@@ -18,7 +24,6 @@ class TimeCapsuleDetailsScreen extends StatefulWidget {
 }
 
 class _TimeCapsuleDetailsScreenState extends State<TimeCapsuleDetailsScreen> {
-  DateTime now = DateTime.now();
   late Capsule capsule;
 
   @override
@@ -32,84 +37,157 @@ class _TimeCapsuleDetailsScreenState extends State<TimeCapsuleDetailsScreen> {
     return DateFormat('MMMM d, yyyy').format(dateTime);
   }
 
-  Future<void> _selectPhotos() async {
-    final List<XFile> selectedImages = await ImagePicker().pickMultiImage(
+  Future<void> _addPhotos() async {
+    final List<XFile>? selectedImages = await ImagePicker().pickMultiImage(
       imageQuality: 70, // Adjust as needed
     );
 
-    if (selectedImages.isNotEmpty) {
+    if (selectedImages != null && selectedImages.isNotEmpty) {
       setState(() {
+        // Add new photos to the existing list
         capsule.uploadedPhotos
             .addAll(selectedImages.map((image) => image.path));
+        widget.onUpdate(capsule); // Update the capsule
       });
-      widget.onUpdate(capsule);
+    }
+  }
+
+  Future<void> _addVideos() async {
+    final XFile? selectedVideo = await ImagePicker().pickVideo(
+      source: ImageSource.gallery,
+    );
+
+    if (selectedVideo != null) {
+      setState(() {
+        capsule.uploadedVideos.add(selectedVideo.path);
+        widget.onUpdate(capsule);
+      });
     }
   }
 
   Future<void> _addLetter() async {
-    String? letter = await showDialog<String>(
+    final TextEditingController letterController = TextEditingController();
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text("Add Letter"),
+        content: TextField(
+          controller: letterController,
+          maxLines: 10,
+          decoration: const InputDecoration(hintText: "Enter your letter here"),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () {
+              if (letterController.text.isNotEmpty) {
+                setState(() {
+                  capsule.letters.add(letterController.text);
+                  widget.onUpdate(capsule); // Update the capsule
+                });
+              }
+              Navigator.pop(context);
+            },
+            child: const Text("Add"),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _deleteItem(int index) async {
+    showDialog(
       context: context,
       builder: (BuildContext context) {
-        TextEditingController letterController = TextEditingController();
         return AlertDialog(
-          title: const Text('Add a Letter'),
-          content: TextField(
-            controller: letterController,
-            maxLines: 5,
-            decoration: const InputDecoration(
-              hintText: 'Type your letter here...',
-            ),
-          ),
+          title: Text('Confirm Deletion'),
+          content: Text('Are you sure you want to delete this item?'),
           actions: <Widget>[
             TextButton(
-              child: const Text('Cancel'),
+              child: Text('Cancel'),
               onPressed: () {
                 Navigator.of(context).pop();
               },
             ),
             TextButton(
-              child: const Text('Add'),
+              child: Text('Delete'),
               onPressed: () {
-                Navigator.of(context).pop(letterController.text);
+                setState(() {
+                  if (index < capsule.uploadedPhotos.length) {
+                    capsule.uploadedPhotos.removeAt(index);
+                  } else if (index <
+                      capsule.uploadedPhotos.length +
+                          capsule.uploadedVideos.length) {
+                    capsule.uploadedVideos
+                        .removeAt(index - capsule.uploadedPhotos.length);
+                  } else {
+                    capsule.letters.removeAt(index -
+                        capsule.uploadedPhotos.length -
+                        capsule.uploadedVideos.length);
+                  }
+                  widget.onUpdate(capsule);
+                });
+                Navigator.of(context).pop();
               },
             ),
           ],
         );
       },
     );
+  }
 
-    if (letter != null && letter.isNotEmpty) {
-      setState(() {
-        capsule.letters.add(letter);
-      });
-      widget.onUpdate(capsule);
-    }
+  Future<void> _deleteCapsule() async {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Text('Confirm Deletion'),
+          content: Text('Are you sure you want to delete this capsule?'),
+          actions: <Widget>[
+            TextButton(
+              child: Text('Cancel'),
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+            ),
+            TextButton(
+              child: Text('Delete'),
+              onPressed: () {
+                widget.onDelete(capsule);
+                Navigator.of(context).pop();
+                Navigator.of(context).pop();
+              },
+            ),
+          ],
+        );
+      },
+    );
   }
 
   @override
   Widget build(BuildContext context) {
+    DateTime now = DateTime.now();
+
     return Scaffold(
       appBar: AppBar(
         title: Text(
           capsule.title,
           style: const TextStyle(
             fontSize: 24.0,
-            color: Colors.white,
+            color: Colors.black,
             fontFamily: 'IndieFlower',
           ),
         ),
         backgroundColor: Colors.blueGrey,
         actions: [
           IconButton(
-            icon: const Icon(Icons.delete),
-            onPressed: () {
-              Navigator.pop(context, 'delete');
-            },
+            icon: Icon(Icons.delete, color: Colors.red),
+            onPressed: _deleteCapsule,
           ),
         ],
       ),
       body: Container(
-        color: Colors.grey, // Light pastel blue color
+        color: Colors.white, // Light pastel blue color
         child: Center(
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
@@ -126,20 +204,18 @@ class _TimeCapsuleDetailsScreenState extends State<TimeCapsuleDetailsScreen> {
               ),
               const SizedBox(height: 10),
               Text(
-                'Opening Date: ${formattedDate(capsule.date)}', // Use formattedDate function
+                'Opening Date: ${formattedDate(capsule.date)}',
                 style: const TextStyle(fontSize: 18, color: Colors.black54),
               ),
               const SizedBox(height: 20),
               if (capsule.date.isAfter(now))
-                const Text(
-                  'LOCKED',
-                  style: TextStyle(fontSize: 18, color: Colors.red),
-                )
+                _buildLockedCapsuleInfo() // Show locked capsule info
               else
                 Expanded(
                   child: ListView.builder(
-                    itemCount:
-                        capsule.uploadedPhotos.length + capsule.letters.length,
+                    itemCount: capsule.uploadedPhotos.length +
+                        capsule.letters.length +
+                        capsule.uploadedVideos.length,
                     itemBuilder: (context, index) {
                       if (index < capsule.uploadedPhotos.length) {
                         return GestureDetector(
@@ -164,16 +240,55 @@ class _TimeCapsuleDetailsScreenState extends State<TimeCapsuleDetailsScreen> {
                               'Photo ${index + 1}',
                               style: const TextStyle(color: Colors.black),
                             ),
+                            trailing: IconButton(
+                              icon: Icon(Icons.delete, color: Colors.red),
+                              onPressed: () => _deleteItem(index),
+                            ),
+                          ),
+                        );
+                      } else if (index <
+                          capsule.uploadedPhotos.length +
+                              capsule.uploadedVideos.length) {
+                        int videoIndex = index - capsule.uploadedPhotos.length;
+                        return ListTile(
+                          leading: FutureBuilder<VideoPlayerController>(
+                            future: _initializeVideoPlayer(
+                                capsule.uploadedVideos[videoIndex]),
+                            builder: (context, snapshot) {
+                              if (snapshot.connectionState ==
+                                  ConnectionState.done) {
+                                return AspectRatio(
+                                  aspectRatio: snapshot.data!.value.aspectRatio,
+                                  child: VideoPlayer(snapshot.data!),
+                                );
+                              } else {
+                                return const CircularProgressIndicator();
+                              }
+                            },
+                          ),
+                          title: Text(
+                            'Video ${videoIndex + 1}',
+                            style: const TextStyle(color: Colors.black),
+                          ),
+                          trailing: IconButton(
+                            icon: Icon(Icons.delete, color: Colors.red),
+                            onPressed: () => _deleteItem(index),
                           ),
                         );
                       } else {
-                        int letterIndex = index - capsule.uploadedPhotos.length;
+                        int letterIndex = index -
+                            capsule.uploadedPhotos.length -
+                            capsule.uploadedVideos.length;
                         return ListTile(
                           title: Text(
                             'Letter ${letterIndex + 1}',
                             style: const TextStyle(color: Colors.black),
                           ),
                           subtitle: Text(capsule.letters[letterIndex]),
+                          trailing: IconButton(
+                            icon: Icon(Icons.delete, color: Colors.red),
+                            onPressed: () => _deleteItem(index),
+                          ),
                         );
                       }
                     },
@@ -185,54 +300,74 @@ class _TimeCapsuleDetailsScreenState extends State<TimeCapsuleDetailsScreen> {
       ),
       floatingActionButton: FloatingActionButton(
         backgroundColor: Colors.red[600],
-        onPressed: () async {
-          if (capsule.date.isBefore(now)) {
-            final action = await showDialog<String>(
-              context: context,
-              builder: (BuildContext context) {
-                return AlertDialog(
-                  title: const Text('Add to Capsule'),
-                  content:
-                      const Text('Would you like to add photos or a letter?'),
-                  actions: <Widget>[
-                    TextButton(
-                      onPressed: () {
-                        Navigator.of(context).pop('photos');
-                      },
-                      child: const Text('Add Photos'),
-                    ),
-                    TextButton(
-                      onPressed: () {
-                        Navigator.of(context).pop('letter');
-                      },
-                      child: const Text('Add Letter'),
-                    ),
-                    TextButton(
-                      onPressed: () {
-                        Navigator.of(context).pop();
-                      },
-                      child: const Text('Cancel'),
-                    ),
-                  ],
-                );
-              },
-            );
-
-            if (action == 'photos') {
-              _selectPhotos();
-            } else if (action == 'letter') {
-              _addLetter();
-            }
-          } else {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('Capsule is locked until the opening date'),
-              ),
-            );
-          }
-        },
+        onPressed: () => _showAddOptions(context),
         child: const Icon(Icons.add),
       ),
+    );
+  }
+
+  Future<VideoPlayerController> _initializeVideoPlayer(String path) async {
+    final controller = VideoPlayerController.file(File(path));
+    await controller.initialize();
+    return controller;
+  }
+
+  void _showAddOptions(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      builder: (context) => Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          ListTile(
+            leading: const Icon(Icons.photo),
+            title: const Text("Add Photos"),
+            onTap: () {
+              Navigator.pop(context);
+              _addPhotos();
+            },
+          ),
+          ListTile(
+            leading: const Icon(Icons.videocam),
+            title: const Text("Add Video"),
+            onTap: () {
+              Navigator.pop(context);
+              _addVideos();
+            },
+          ),
+          ListTile(
+            leading: const Icon(Icons.note),
+            title: const Text("Add Letter"),
+            onTap: () {
+              Navigator.pop(context);
+              _addLetter();
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildLockedCapsuleInfo() {
+    return Column(
+      children: [
+        const Text(
+          'LOCKED',
+          style: TextStyle(fontSize: 18, color: Colors.red),
+        ),
+        const SizedBox(height: 10),
+        Text(
+          'Photos: ${capsule.uploadedPhotos.length}',
+          style: const TextStyle(fontSize: 16, color: Colors.black),
+        ),
+        Text(
+          'Videos: ${capsule.uploadedVideos.length}',
+          style: const TextStyle(fontSize: 16, color: Colors.black),
+        ),
+        Text(
+          'Letters: ${capsule.letters.length}',
+          style: const TextStyle(fontSize: 16, color: Colors.black),
+        ),
+      ],
     );
   }
 }

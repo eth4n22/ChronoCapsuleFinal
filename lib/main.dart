@@ -142,6 +142,11 @@ class _TimeCapsuleHomeScreenState extends State<TimeCapsuleHomeScreen> {
                                       capsules[index] = updatedCapsule;
                                     });
                                   },
+                                  onDelete: (deletedCapsule) {
+                                    setState(() {
+                                      capsules.remove(deletedCapsule);
+                                    });
+                                  },
                                 ),
                               ),
                             );

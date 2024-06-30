@@ -15,6 +15,7 @@ class _CreateCapsuleScreenState extends State<CreateCapsuleScreen> {
   DateTime? _selectedDate;
   final List<File> _selectedPhotos = []; // List to store selected photos
   final List<String> _letters = []; // List to store letters
+  final List<File> _selectedVideos = []; // List to store selected videos
 
   @override
   Widget build(BuildContext context) {
@@ -50,18 +51,29 @@ class _CreateCapsuleScreenState extends State<CreateCapsuleScreen> {
             ),
             const SizedBox(height: 20),
             ElevatedButton(
+              onPressed: () => _selectVideos(context),
+              child: const Text('Select Videos'),
+            ),
+            const SizedBox(height: 20),
+            ElevatedButton(
               onPressed: () => _addLetter(context),
               child: const Text('Add Letter'),
             ),
             const SizedBox(height: 20),
-            // Display selected photos here (if any)
             Expanded(
               child: ListView.builder(
-                itemCount: _selectedPhotos.length + _letters.length,
+                itemCount: _selectedPhotos.length +
+                    _letters.length +
+                    _selectedVideos.length,
                 itemBuilder: (context, index) {
                   if (index < _selectedPhotos.length) {
                     return ListTile(
-                      leading: Image.file(_selectedPhotos[index]),
+                      leading: Image.file(
+                        _selectedPhotos[index],
+                        width: 100,
+                        height: 100,
+                        fit: BoxFit.cover,
+                      ),
                       trailing: IconButton(
                         icon: const Icon(Icons.remove_circle),
                         onPressed: () {
@@ -71,8 +83,24 @@ class _CreateCapsuleScreenState extends State<CreateCapsuleScreen> {
                         },
                       ),
                     );
+                  } else if (index <
+                      _selectedPhotos.length + _selectedVideos.length) {
+                    int videoIndex = index - _selectedPhotos.length;
+                    return ListTile(
+                      leading: Icon(Icons.video_library),
+                      title: Text('Video ${videoIndex + 1}'),
+                      trailing: IconButton(
+                        icon: const Icon(Icons.remove_circle),
+                        onPressed: () {
+                          setState(() {
+                            _selectedVideos.removeAt(videoIndex);
+                          });
+                        },
+                      ),
+                    );
                   } else {
-                    int letterIndex = index - _selectedPhotos.length;
+                    int letterIndex =
+                        index - _selectedPhotos.length - _selectedVideos.length;
                     return ListTile(
                       title: Text('Letter ${letterIndex + 1}'),
                       subtitle: Text(_letters[letterIndex]),
@@ -123,8 +151,19 @@ class _CreateCapsuleScreenState extends State<CreateCapsuleScreen> {
 
     if (selectedImages.isNotEmpty) {
       setState(() {
-        _selectedPhotos.clear(); // Clear existing selections
         _selectedPhotos.addAll(selectedImages.map((image) => File(image.path)));
+      });
+    }
+  }
+
+  Future<void> _selectVideos(BuildContext context) async {
+    final XFile? selectedVideo = await ImagePicker().pickVideo(
+      source: ImageSource.gallery,
+    );
+
+    if (selectedVideo != null) {
+      setState(() {
+        _selectedVideos.add(File(selectedVideo.path));
       });
     }
   }
@@ -175,10 +214,10 @@ class _CreateCapsuleScreenState extends State<CreateCapsuleScreen> {
         date: _selectedDate!,
         uploadedPhotos: _selectedPhotos.map((photo) => photo.path).toList(),
         letters: _letters,
+        uploadedVideos: _selectedVideos.map((video) => video.path).toList(),
       );
       Navigator.pop(context, newCapsule);
     } else {
-      // Show an error message if the title or date is not selected
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Please enter a title and select a date'),
