@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart'; // Import for date formatting
 import 'package:chronocapsules/capsule.dart'; // Import Capsule class
 import 'package:chronocapsules/full_screen_image_screen.dart'; // Import the full screen image screen
+import 'package:chronocapsules/full_screen_video_screen.dart'; // Import the full screen video screen
 import 'package:image_picker/image_picker.dart'; // Import for image picker
 import 'package:video_player/video_player.dart'; // Import for video player
 import 'package:cloud_firestore/cloud_firestore.dart'; // Import for Firestore
@@ -101,17 +102,17 @@ class _TimeCapsuleDetailsScreenState extends State<TimeCapsuleDetailsScreen> {
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
-          title: Text('Confirm Deletion'),
-          content: Text('Are you sure you want to delete this item?'),
+          title: const Text('Confirm Deletion'),
+          content: const Text('Are you sure you want to delete this item?'),
           actions: <Widget>[
             TextButton(
-              child: Text('Cancel'),
+              child: const Text('Cancel'),
               onPressed: () {
                 Navigator.of(context).pop();
               },
             ),
             TextButton(
-              child: Text('Delete'),
+              child: const Text('Delete'),
               onPressed: () {
                 setState(() {
                   if (index < capsule.uploadedPhotos.length) {
@@ -142,17 +143,17 @@ class _TimeCapsuleDetailsScreenState extends State<TimeCapsuleDetailsScreen> {
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
-          title: Text('Confirm Deletion'),
-          content: Text('Are you sure you want to delete this capsule?'),
+          title: const Text('Confirm Deletion'),
+          content: const Text('Are you sure you want to delete this capsule?'),
           actions: <Widget>[
             TextButton(
-              child: Text('Cancel'),
+              child: const Text('Cancel'),
               onPressed: () {
                 Navigator.of(context).pop();
               },
             ),
             TextButton(
-              child: Text('Delete'),
+              child: const Text('Delete'),
               onPressed: () async {
                 await FirebaseFirestore.instance
                     .collection('capsules')
@@ -198,7 +199,7 @@ class _TimeCapsuleDetailsScreenState extends State<TimeCapsuleDetailsScreen> {
         backgroundColor: Colors.blueGrey,
         actions: [
           IconButton(
-            icon: Icon(Icons.delete, color: Colors.red),
+            icon: const Icon(Icons.delete, color: Colors.red),
             onPressed: _deleteCapsule,
           ),
         ],
@@ -258,7 +259,7 @@ class _TimeCapsuleDetailsScreenState extends State<TimeCapsuleDetailsScreen> {
                               style: const TextStyle(color: Colors.black),
                             ),
                             trailing: IconButton(
-                              icon: Icon(Icons.delete, color: Colors.red),
+                              icon: const Icon(Icons.delete, color: Colors.red),
                               onPressed: () => _deleteItem(index),
                             ),
                           ),
@@ -267,29 +268,42 @@ class _TimeCapsuleDetailsScreenState extends State<TimeCapsuleDetailsScreen> {
                           capsule.uploadedPhotos.length +
                               capsule.uploadedVideos.length) {
                         int videoIndex = index - capsule.uploadedPhotos.length;
-                        return ListTile(
-                          leading: FutureBuilder<VideoPlayerController>(
-                            future: _initializeVideoPlayer(
-                                capsule.uploadedVideos[videoIndex]),
-                            builder: (context, snapshot) {
-                              if (snapshot.connectionState ==
-                                  ConnectionState.done) {
-                                return AspectRatio(
-                                  aspectRatio: snapshot.data!.value.aspectRatio,
-                                  child: VideoPlayer(snapshot.data!),
-                                );
-                              } else {
-                                return const CircularProgressIndicator();
-                              }
-                            },
-                          ),
-                          title: Text(
-                            'Video ${videoIndex + 1}',
-                            style: const TextStyle(color: Colors.black),
-                          ),
-                          trailing: IconButton(
-                            icon: Icon(Icons.delete, color: Colors.red),
-                            onPressed: () => _deleteItem(index),
+                        return GestureDetector(
+                          onTap: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => FullScreenVideoScreen(
+                                  videoPath: capsule.uploadedVideos[videoIndex],
+                                ),
+                              ),
+                            );
+                          },
+                          child: ListTile(
+                            leading: FutureBuilder<VideoPlayerController>(
+                              future: _initializeVideoPlayer(
+                                  capsule.uploadedVideos[videoIndex]),
+                              builder: (context, snapshot) {
+                                if (snapshot.connectionState ==
+                                    ConnectionState.done) {
+                                  return AspectRatio(
+                                    aspectRatio:
+                                    snapshot.data!.value.aspectRatio,
+                                    child: VideoPlayer(snapshot.data!),
+                                  );
+                                } else {
+                                  return const CircularProgressIndicator();
+                                }
+                              },
+                            ),
+                            title: Text(
+                              'Video ${videoIndex + 1}',
+                              style: const TextStyle(color: Colors.black),
+                            ),
+                            trailing: IconButton(
+                              icon: const Icon(Icons.delete, color: Colors.red),
+                              onPressed: () => _deleteItem(index),
+                            ),
                           ),
                         );
                       } else {
@@ -303,7 +317,7 @@ class _TimeCapsuleDetailsScreenState extends State<TimeCapsuleDetailsScreen> {
                           ),
                           subtitle: Text(capsule.letters[letterIndex]),
                           trailing: IconButton(
-                            icon: Icon(Icons.delete, color: Colors.red),
+                            icon: const Icon(Icons.delete, color: Colors.red),
                             onPressed: () => _deleteItem(index),
                           ),
                         );
