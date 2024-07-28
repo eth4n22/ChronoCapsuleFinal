@@ -1,5 +1,6 @@
-import 'package:chronocapsules/Reusable%20Widgets/reusable_widget.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:chronocapsules/Reusable%20Widgets/reusable_widget.dart';
 import 'package:flutter/material.dart';
 import 'package:chronocapsules/main.dart';
 
@@ -13,7 +14,6 @@ class SignUpScreen extends StatefulWidget {
 class _SignUpScreenState extends State<SignUpScreen> {
   final TextEditingController _passwordTextController = TextEditingController();
   final TextEditingController _emailTextController = TextEditingController();
-  final TextEditingController _userNameTextController = TextEditingController();
 
   @override
   Widget build(BuildContext context) {
@@ -45,11 +45,6 @@ class _SignUpScreenState extends State<SignUpScreen> {
                 const SizedBox(
                   height: 30,
                 ),
-                reusableTextField("Enter Username", Icons.person_outline, false,
-                    _userNameTextController),
-                const SizedBox(
-                  height: 30,
-                ),
                 reusableTextField("Enter Email Address", Icons.person_outline,
                     false, _emailTextController),
                 const SizedBox(
@@ -63,13 +58,27 @@ class _SignUpScreenState extends State<SignUpScreen> {
                 signInSignUpButton(
                   context,
                   false,
-                  () {
-                    FirebaseAuth.instance
-                        .createUserWithEmailAndPassword(
-                            email: _emailTextController.text,
-                            password: _passwordTextController.text)
-                        .then(
-                      (value) {
+                  () async {
+                    try {
+                      UserCredential userCredential = await FirebaseAuth
+                          .instance
+                          .createUserWithEmailAndPassword(
+                        email: _emailTextController.text,
+                        password: _passwordTextController.text,
+                      );
+                      User? user = userCredential.user;
+                      if (user != null) {
+                        // Save the user email in Firestore
+                        await FirebaseFirestore.instance
+                            .collection('users')
+                            .doc(user.uid)
+                            .set({
+                          'email': user.email,
+                          'friends': [],
+                          'friendRequestsSent': [],
+                          'friendRequestsReceived': [],
+                        });
+
                         print("New Account Created");
                         Navigator.push(
                           context,
@@ -77,12 +86,15 @@ class _SignUpScreenState extends State<SignUpScreen> {
                             builder: (context) => const TimeCapsuleHomeScreen(),
                           ),
                         );
-                      },
-                    ).onError(
-                      (error, stackTrace) {
-                        print("Error ${error.toString()}");
-                      },
-                    );
+                      }
+                    } catch (e) {
+                      print("Error ${e.toString()}");
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text("Error: ${e.toString()}"),
+                        ),
+                      );
+                    }
                   },
                 ),
               ],

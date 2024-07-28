@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
-import 'package:chronocapsules/capsule.dart'; // Import your Capsule class
-import 'package:image_picker/image_picker.dart'; // Import image_picker for photo selection
+import 'package:chronocapsules/capsule.dart';
+import 'package:image_picker/image_picker.dart';
 import 'dart:io';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:uuid/uuid.dart';
 
 class CreateCapsuleScreen extends StatefulWidget {
   const CreateCapsuleScreen({super.key});
@@ -13,9 +16,9 @@ class CreateCapsuleScreen extends StatefulWidget {
 class _CreateCapsuleScreenState extends State<CreateCapsuleScreen> {
   final TextEditingController _titleController = TextEditingController();
   DateTime? _selectedDate;
-  final List<File> _selectedPhotos = []; // List to store selected photos
-  final List<String> _letters = []; // List to store letters
-  final List<File> _selectedVideos = []; // List to store selected videos
+  final List<File> _selectedPhotos = [];
+  final List<String> _letters = [];
+  final List<File> _selectedVideos = [];
 
   @override
   Widget build(BuildContext context) {
@@ -146,7 +149,7 @@ class _CreateCapsuleScreenState extends State<CreateCapsuleScreen> {
 
   Future<void> _selectPhotos(BuildContext context) async {
     final List<XFile> selectedImages = await ImagePicker().pickMultiImage(
-      imageQuality: 70, // Adjust as needed
+      imageQuality: 70,
     );
 
     if (selectedImages.isNotEmpty) {
@@ -207,15 +210,30 @@ class _CreateCapsuleScreenState extends State<CreateCapsuleScreen> {
     }
   }
 
-  void _createCapsule(BuildContext context) {
+  Future<void> _createCapsule(BuildContext context) async {
     if (_titleController.text.isNotEmpty && _selectedDate != null) {
+      User? currentUser = FirebaseAuth.instance.currentUser;
+      if (currentUser == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('User not authenticated'),
+          ),
+        );
+        return;
+      }
+
       final newCapsule = Capsule(
+        id: Uuid().v4(),
         title: _titleController.text,
         date: _selectedDate!,
         uploadedPhotos: _selectedPhotos.map((photo) => photo.path).toList(),
         letters: _letters,
         uploadedVideos: _selectedVideos.map((video) => video.path).toList(),
+        ownerId: currentUser.uid,
       );
+
+      await Capsule.addCapsule(newCapsule);
+
       Navigator.pop(context, newCapsule);
     } else {
       ScaffoldMessenger.of(context).showSnackBar(

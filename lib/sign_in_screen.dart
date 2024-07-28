@@ -3,6 +3,7 @@ import 'package:chronocapsules/Reusable%20Widgets/reusable_widget.dart';
 import 'package:chronocapsules/main.dart';
 import 'package:chronocapsules/sign_up_screen.dart';
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class SigninScreen extends StatefulWidget {
   const SigninScreen({super.key}); // Follow Dart conventions for class names
@@ -13,7 +14,52 @@ class SigninScreen extends StatefulWidget {
 
 class _SigninScreenState extends State<SigninScreen> {
   final TextEditingController _passwordTextController = TextEditingController();
-  final TextEditingController _emailTextController = TextEditingController();
+  final TextEditingController _emailOrUidTextController =
+      TextEditingController();
+
+  Future<void> _signIn() async {
+    String input = _emailOrUidTextController.text.trim();
+    String password = _passwordTextController.text;
+
+    try {
+      UserCredential userCredential;
+      if (input.contains('@')) {
+        // Sign in using email
+        userCredential = await FirebaseAuth.instance.signInWithEmailAndPassword(
+          email: input,
+          password: password,
+        );
+      } else {
+        // Sign in using custom user ID (we assume the custom user ID is stored in a field called 'customUid')
+        QuerySnapshot userSnapshot = await FirebaseFirestore.instance
+            .collection('users')
+            .where('customUid', isEqualTo: input)
+            .limit(1)
+            .get();
+
+        if (userSnapshot.docs.isEmpty) {
+          throw FirebaseAuthException(
+              code: 'user-not-found', message: 'User not found.');
+        }
+
+        String email = userSnapshot.docs.first['email'];
+
+        userCredential = await FirebaseAuth.instance.signInWithEmailAndPassword(
+          email: email,
+          password: password,
+        );
+      }
+
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (context) => const TimeCapsuleHomeScreen()),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Sign-in failed: ${e.toString()}')),
+      );
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -38,8 +84,8 @@ class _SigninScreenState extends State<SigninScreen> {
                 const SizedBox(
                   height: 30,
                 ),
-                reusableTextField("Enter Email Address", Icons.person_outline, false,
-                    _emailTextController),
+                reusableTextField("Enter Email Address or User ID",
+                    Icons.person_outline, false, _emailOrUidTextController),
                 const SizedBox(
                   height: 20,
                 ),
@@ -51,19 +97,7 @@ class _SigninScreenState extends State<SigninScreen> {
                 signInSignUpButton(
                   context,
                   true,
-                  () {
-                    FirebaseAuth.instance
-                        .signInWithEmailAndPassword(
-                            email: _emailTextController.text,
-                            password: _passwordTextController.text)
-                        .then((value) {
-                      Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                              builder: (context) =>
-                                  const TimeCapsuleHomeScreen()));
-                    });
-                  },
+                  _signIn,
                 ),
                 signUpOption()
               ],

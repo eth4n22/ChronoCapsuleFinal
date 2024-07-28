@@ -5,6 +5,7 @@ import 'package:chronocapsules/capsule.dart'; // Import Capsule class
 import 'package:chronocapsules/full_screen_image_screen.dart'; // Import the full screen image screen
 import 'package:image_picker/image_picker.dart'; // Import for image picker
 import 'package:video_player/video_player.dart'; // Import for video player
+import 'package:cloud_firestore/cloud_firestore.dart'; // Import for Firestore
 
 class TimeCapsuleDetailsScreen extends StatefulWidget {
   final Capsule capsule;
@@ -47,7 +48,7 @@ class _TimeCapsuleDetailsScreenState extends State<TimeCapsuleDetailsScreen> {
         // Add new photos to the existing list
         capsule.uploadedPhotos
             .addAll(selectedImages.map((image) => image.path));
-        widget.onUpdate(capsule); // Update the capsule
+        _updateCapsule(); // Update the capsule in Firestore
       });
     }
   }
@@ -60,7 +61,7 @@ class _TimeCapsuleDetailsScreenState extends State<TimeCapsuleDetailsScreen> {
     if (selectedVideo != null) {
       setState(() {
         capsule.uploadedVideos.add(selectedVideo.path);
-        widget.onUpdate(capsule);
+        _updateCapsule(); // Update the capsule in Firestore
       });
     }
   }
@@ -83,7 +84,7 @@ class _TimeCapsuleDetailsScreenState extends State<TimeCapsuleDetailsScreen> {
               if (letterController.text.isNotEmpty) {
                 setState(() {
                   capsule.letters.add(letterController.text);
-                  widget.onUpdate(capsule); // Update the capsule
+                  _updateCapsule(); // Update the capsule in Firestore
                 });
               }
               Navigator.pop(context);
@@ -125,7 +126,7 @@ class _TimeCapsuleDetailsScreenState extends State<TimeCapsuleDetailsScreen> {
                         capsule.uploadedPhotos.length -
                         capsule.uploadedVideos.length);
                   }
-                  widget.onUpdate(capsule);
+                  _updateCapsule(); // Update the capsule in Firestore
                 });
                 Navigator.of(context).pop();
               },
@@ -152,7 +153,11 @@ class _TimeCapsuleDetailsScreenState extends State<TimeCapsuleDetailsScreen> {
             ),
             TextButton(
               child: Text('Delete'),
-              onPressed: () {
+              onPressed: () async {
+                await FirebaseFirestore.instance
+                    .collection('capsules')
+                    .doc(capsule.id)
+                    .delete();
                 widget.onDelete(capsule);
                 Navigator.of(context).pop();
                 Navigator.of(context).pop();
@@ -162,6 +167,18 @@ class _TimeCapsuleDetailsScreenState extends State<TimeCapsuleDetailsScreen> {
         );
       },
     );
+  }
+
+  Future<void> _updateCapsule() async {
+    await FirebaseFirestore.instance
+        .collection('capsules')
+        .doc(capsule.id)
+        .update({
+      'uploadedPhotos': capsule.uploadedPhotos,
+      'uploadedVideos': capsule.uploadedVideos,
+      'letters': capsule.letters,
+    });
+    widget.onUpdate(capsule);
   }
 
   @override
